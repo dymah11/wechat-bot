@@ -53,17 +53,18 @@ export const webhookCallback = async (req: Request, res: Response): Promise<void
         }
 
         // Get mentioned name from message content
-        const mentionedName = extractBotNickName(messageData.data?.content || "", [""])
-        console.log("mentionedName", mentionedName)
-
-        // Check if the mentioned name matches bot's actual nickname
-        const isBotMentioned =
-            (mentionedName &&
-                botActualNickName &&
-                (mentionedName.toLowerCase() === botActualNickName.toLowerCase() || mentionedName.toLowerCase() === "fandy")) ||
-            false
 
         if (isGroupMessage) {
+            const mentionedName = extractBotNickName(messageData.data?.content || "", [""])
+            console.log("mentionedName", mentionedName)
+
+            // Check if the mentioned name matches bot's actual nickname
+            const isBotMentioned =
+                (mentionedName &&
+                    botActualNickName &&
+                    (mentionedName.toLowerCase() === botActualNickName.toLowerCase() || mentionedName.toLowerCase() === "fandy")) ||
+                false
+
             // Check if bot is mentioned in group message
             if (!isBotMentioned) {
                 console.log("[Webhook] Group message but bot not mentioned or mentioned name doesn't match bot nickname")
