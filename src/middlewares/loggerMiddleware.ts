@@ -13,7 +13,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
     const url = req.originalUrl
     let ip = req.ip || req.socket.remoteAddress || "-"
     // Normalize IPv6 localhost to IPv4
-    if (ip === "::1") ip = "127.0.0.1"
+    if (ip === "::1" || ip === "::ffff:127.0.0.1") ip = "127.0.0.1"
     console.log(`${GREEN}[${ip}]||[${method}]||[${url}]${RESET}`)
     next()
 }

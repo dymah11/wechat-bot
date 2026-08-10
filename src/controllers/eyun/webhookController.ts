@@ -85,7 +85,7 @@ export const webhookCallback = async (req: Request, res: Response): Promise<void
             const msgId = String(messageData.data.msgId)
             const fromWxId = messageData.data.fromUser
             const fromGroup = messageData.data.fromGroup // This is the group ID for group messages
-            console.log(messageData.data.msgId + " : __________________________")
+            console.log(fromGroup + " - " + messageData.data.msgId + " : __________________________")
             console.log(messageData.data.content)
             const nickName = extractNickname(messageData.data.pushContent) || ""
 
