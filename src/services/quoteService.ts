@@ -135,7 +135,9 @@ export const processIncomingGroupMessage = async (message: IncomingGroupMessage)
     }
 
     let chatHistoryEntry = await chatHistory.findOne({ where: { msgId } })
+    console.log(`[Quote] Chat history entry: ${chatHistoryEntry}`)
     if (!chatHistoryEntry) {
+        console.log(`[Quote] No chat history entry found, creating new one`)
         chatHistoryEntry = await chatHistory.create({
             msgId,
             wId,
