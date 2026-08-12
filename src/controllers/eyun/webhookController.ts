@@ -31,7 +31,7 @@ export const cancelWebhook = async (_req: Request, res: Response): Promise<void>
 export const webhookCallback = async (req: Request, res: Response): Promise<void> => {
     try {
         const messageData = req.body
-        console.log("messageData_______________________", messageData)
+        console.log("[Webhook] Processing message", messageData)
 
         // Skip if message is from self (the bot itself)
         // if (messageData.data?.self === true) {
@@ -44,6 +44,9 @@ export const webhookCallback = async (req: Request, res: Response): Promise<void
         const isGroupMessage = messageData.data?.fromGroup?.includes("@chatroom") || messageData.msgType === "GROUP_TEXT"
 
         const wId = messageData.data?.wId
+        const msgId = String(messageData.data?.msgId)
+        const fromWxId = messageData.data?.fromUser
+        let nickName = extractNickname(messageData.data?.pushContent) || ""
 
         // Get bot's actual nickname from users table
         let botActualNickName: string | null = null
@@ -53,42 +56,54 @@ export const webhookCallback = async (req: Request, res: Response): Promise<void
             console.log("[Webhook] Bot actual nickName from DB:", botActualNickName)
         }
 
+        const msgType = messageData.data.messageType
+        const isImageMessage = msgType === "60002" || messageData.msgType === "PRIVATE_IMAGE" || messageData.msgType === "GROUP_IMAGE"
+        let imageUrl: string | null = null
+
+        if (isImageMessage) {
+            try {
+                // Use Eyun API to get image URL
+                const eyun = getEyunService()
+                const imgResult = await eyun.getMsgImg({
+                    wId,
+                    msgId: Number(msgId),
+                    content: messageData.data.content, // XML content
+                    type: 1, // 1 = HD image, 0 = regular image
+                })
+
+                if (imgResult.data?.url) {
+                    imageUrl = imgResult.data.url
+                    console.log(`[Webhook] Image URL: ${imageUrl}`)
+                } else {
+                    console.log(`[Webhook] getMsgImg returned no URL`)
+                }
+            } catch (err) {
+                console.error("[Webhook] Failed to get image URL:", err)
+            }
+        }
+
         // Get mentioned name from message content
 
         if (isGroupMessage) {
+            const fromGroup = messageData.data.fromGroup
+
+            // Check if this is a group image message
+            let content: string
+            // For image messages, content is the URL; for text, extract from content
+
             const mentionedName = extractBotNickName(messageData.data?.content || "", [""])
-            console.log("mentionedName", mentionedName)
-
-            // Check if the mentioned name matches bot's actual nickname
-            const isBotMentioned =
-                (mentionedName &&
-                    botActualNickName &&
-                    (mentionedName.toLowerCase() === botActualNickName.toLowerCase() || mentionedName.toLowerCase() === "fandy")) ||
-                false
-
-            // Check if bot is mentioned in group message
-            if (!isBotMentioned) {
-                console.log("[Webhook] Group message but bot not mentioned or mentioned name doesn't match bot nickname")
-                // res.json({ code: "1000", message: "ok" })
-                // return
-            }
-
-            // Extract actual message content (remove @mention part)
             const actualContent = extractGroupMessageContent(messageData.data?.content || "", mentionedName || "")
             if (!actualContent.trim()) {
-                console.log("[Webhook] Group message has no content after removing mention")
+                console.log("[Webhook] Group message has no content")
                 res.json({ code: "1000", message: "ok" })
                 return
             }
+            content = isImageMessage ? imageUrl || "" : actualContent
 
-            console.log(`[Webhook] Group message mentioned bot (${mentionedName}): ${actualContent}`)
+            console.log(fromGroup + "-" + msgId + "________________________________")
+            console.log("content: " + content)
 
-            const msgId = String(messageData.data.msgId)
-            const fromWxId = messageData.data.fromUser
-            const fromGroup = messageData.data.fromGroup // This is the group ID for group messages
-            console.log(fromGroup + " - " + messageData.data.msgId + " : __________________________")
-            console.log(messageData.data.content)
-            const nickName = extractNickname(messageData.data.pushContent) || ""
+            const isBotMentioned = true // Image messages always process
 
             // Check duplicate by msgId
             const existing = await chatHistory.findOne({ where: { msgId } })
@@ -98,12 +113,11 @@ export const webhookCallback = async (req: Request, res: Response): Promise<void
                 return
             }
 
-            // Process group message with bot mention
             await processIncomingGroupMessage({
                 msgId,
                 fromWxId,
                 fromGroup,
-                content: actualContent,
+                content,
                 wId,
                 nickName,
                 isBotMentioned,
@@ -112,73 +126,35 @@ export const webhookCallback = async (req: Request, res: Response): Promise<void
             res.json({ code: "1000", message: "ok" })
             return
         }
-        console.log("[Webhook] Processing message", messageData)
 
-        // Map Eyun webhook format to IncomingMessage format
-        if (messageData.data) {
-            const msgId = String(messageData.data.msgId)
-            const fromWxId = messageData.data.fromUser
-            const wId = messageData.data.wId
-            let nickName = extractNickname(messageData.data.pushContent)
-
-            // Get contact info and save user to database
-            try {
-                const contact = await saveContact(wId, fromWxId)
-                // console.log("[Webhook] Contact", contact)
-                if (contact && contact?.nickName && !contact.nickName.startsWith("wxid_")) {
-                    nickName = contact.nickName
-                }
-            } catch (err) {
-                console.log("[Webhook] Failed to get contact, using pushContent nickname")
+        // Get contact info and save user to database
+        try {
+            const contact = await saveContact(wId, fromWxId)
+            if (contact && contact?.nickName && !contact.nickName.startsWith("wxid_")) {
+                nickName = contact.nickName
             }
-
-            // Check duplicate by msgId
-            const existing = await chatHistory.findOne({ where: { msgId } })
-            if (existing) {
-                console.log(`[Webhook] Message ${msgId} already processed, skipping`)
-                res.json({ code: "1000", message: "ok" })
-                return
-            }
-
-            // Check if this is an image message
-            const msgType = messageData.data.messageType
-            const isImageMessage = msgType === "60002" || messageData.msgType === "PRIVATE_IMAGE"
-            let imageUrl: string | null = null
-
-            if (isImageMessage) {
-                try {
-                    // Use Eyun API to get image URL
-                    const eyun = getEyunService()
-                    const imgResult = await eyun.getMsgImg({
-                        wId,
-                        msgId: Number(messageData.data.msgId),
-                        content: messageData.data.content, // XML content
-                        type: 1, // 1 = HD image, 0 = regular image
-                    })
-
-                    if (imgResult.data?.url) {
-                        imageUrl = imgResult.data.url
-                        console.log(`[Webhook] Image URL: ${imageUrl}`)
-                    } else {
-                        console.log(`[Webhook] getMsgImg returned no URL`)
-                    }
-                } catch (err) {
-                    console.error("[Webhook] Failed to get image URL:", err)
-                }
-            }
-
-            // Set content: image URL for image messages, or original text
-            const content = imageUrl || messageData.data.content
-
-            await processIncomingMessage({
-                fromWxId,
-                toWxId: messageData.data.toUser,
-                msgId,
-                content,
-                wId,
-                nickName: nickName || "",
-            })
+        } catch (err) {
+            console.log("[Webhook] Failed to get contact, using pushContent nickname")
         }
+
+        // Check duplicate by msgId
+        const existing = await chatHistory.findOne({ where: { msgId } })
+        if (existing) {
+            console.log(`[Webhook] Message ${msgId} already processed, skipping`)
+            res.json({ code: "1000", message: "ok" })
+            return
+        }
+
+        const content = isImageMessage ? imageUrl : messageData.data.content
+
+        await processIncomingMessage({
+            fromWxId,
+            toWxId: messageData.data.toUser,
+            msgId,
+            content,
+            wId,
+            nickName: nickName || "",
+        })
 
         res.json({ code: "1000", message: "ok" })
     } catch (error) {
