@@ -31,6 +31,7 @@ export const cancelWebhook = async (_req: Request, res: Response): Promise<void>
 export const webhookCallback = async (req: Request, res: Response): Promise<void> => {
     try {
         const messageData = req.body
+        console.log("messageData_______________________", messageData)
 
         // Skip if message is from self (the bot itself)
         // if (messageData.data?.self === true) {
@@ -239,4 +240,3 @@ function extractGroupMessageContent(content: string, botNickName: string): strin
     const pattern = new RegExp(`@${escapedNickName}\\s*`)
     return content.replace(pattern, "").trim()
 }
-
