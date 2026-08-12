@@ -1,12 +1,20 @@
 import { EyunBaseService } from "./eyunBaseService"
-import { EyunResponse, GetMsgFileRequest, GetMsgImgRequest, GetMsgVoiceRequest, GetMsgEmojiRequest, AsyncVideoDownloadRequest, AsyncVideoDownloadResponse } from "../../types/eyun"
+import {
+    EyunResponse,
+    GetMsgFileRequest,
+    GetMsgImgRequest,
+    GetMsgVoiceRequest,
+    GetMsgEmojiRequest,
+    AsyncVideoDownloadRequest,
+    AsyncVideoDownloadResponse,
+} from "../../types/eyun"
 
 /**
  * Download APIs
  * POST /getMsgFile, /getMsgImg, /getMsgVoice, /getMsgEmoji, /asynGetMsgVideo, /getMsgVideoRes
  */
 export class EyunDownloadService extends EyunBaseService {
-    async getMsgFile(params: GetMsgFileRequest): Promise<EyunResponse<{ content: string }>> {
+    async getMsgFile(params: GetMsgFileRequest): Promise<EyunResponse<{ url: string }>> {
         return this.request("/getMsgFile", params)
     }
 
@@ -30,3 +38,4 @@ export class EyunDownloadService extends EyunBaseService {
         return this.request("/getMsgVideoRes", { id })
     }
 }
+

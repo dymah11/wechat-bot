@@ -57,8 +57,19 @@ export const webhookCallback = async (req: Request, res: Response): Promise<void
         }
 
         const msgType = messageData.data.messageType
-        const isImageMessage = msgType === "60002" || messageData.msgType === "PRIVATE_IMAGE" || messageData.msgType === "GROUP_IMAGE"
+        const isImageMessage =
+            msgType === "60002" || msgType === "80002" || messageData.msgType === "PRIVATE_IMAGE" || messageData.msgType === "GROUP_IMAGE"
+        const isFileMessage =
+            msgType === "60008" ||
+            msgType === "60009" ||
+            msgType === "80009" ||
+            msgType === "80008" ||
+            messageData.msgType === "GROUP_FILE" ||
+            messageData.msgType === "GROUP_FILE_DONE" ||
+            messageData.msgType === "PRIVATE_FILE" ||
+            messageData.msgType === "PRIVATE_FILE_DONE"
         let imageUrl: string | null = null
+        let fileUrl: string | null = null
 
         if (isImageMessage) {
             try {
@@ -82,6 +93,27 @@ export const webhookCallback = async (req: Request, res: Response): Promise<void
             }
         }
 
+        if (isFileMessage) {
+            try {
+                // Use Eyun API to get file URL
+                const eyun = getEyunService()
+                const fileResult = await eyun.getMsgFile({
+                    wId,
+                    msgId: Number(msgId),
+                    content: messageData.data.content, // XML content
+                })
+
+                if (fileResult.data?.url) {
+                    fileUrl = fileResult.data.url
+                    console.log(`[Webhook] File URL: ${fileUrl}`)
+                } else {
+                    console.log(`[Webhook] getMsgFile returned no URL`)
+                }
+            } catch (err) {
+                console.error("[Webhook] Failed to get file URL:", err)
+            }
+        }
+
         // Get mentioned name from message content
 
         if (isGroupMessage) {
@@ -98,9 +130,9 @@ export const webhookCallback = async (req: Request, res: Response): Promise<void
                 res.json({ code: "1000", message: "ok" })
                 return
             }
-            content = isImageMessage ? imageUrl || "" : actualContent
+            content = isImageMessage ? imageUrl || "" : isFileMessage ? fileUrl || "" : actualContent
 
-            console.log(fromGroup + "-" + msgId + "________________________________")
+            console.log(fromGroup + " - " + msgId + ": ___________________________________________")
             console.log("content: " + content)
 
             console.log("mentionedName", mentionedName)
@@ -159,7 +191,7 @@ export const webhookCallback = async (req: Request, res: Response): Promise<void
             return
         }
 
-        const content = isImageMessage ? imageUrl : messageData.data.content
+        const content = isImageMessage ? imageUrl || "" : isFileMessage ? fileUrl || "" : messageData.data.content
 
         await processIncomingMessage({
             fromWxId,
