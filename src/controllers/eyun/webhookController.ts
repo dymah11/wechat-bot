@@ -117,7 +117,6 @@ export const webhookCallback = async (req: Request, res: Response): Promise<void
         if (messageData.data) {
             const msgId = String(messageData.data.msgId)
             const fromWxId = messageData.data.fromUser
-            const content = messageData.data.content
             const wId = messageData.data.wId
             let nickName = extractNickname(messageData.data.pushContent)
 
@@ -140,20 +139,29 @@ export const webhookCallback = async (req: Request, res: Response): Promise<void
                 return
             }
 
-            // if (msgType !== 1) {
-            //     console.log(`[Webhook] Skipping non-text message type: ${msgType}`)
-            //     return
-            // }
+            // Check if this is an image message
+            const msgType = messageData.data.messageType
+            const isImageMessage = msgType === "60002" || messageData.msgType === "PRIVATE_IMAGE"
+            let imageBase64: string | null = null
 
-            const mappedMessage = {
+            if (isImageMessage && messageData.data.img) {
+                imageBase64 = messageData.data.img
+                console.log(`[Webhook] Image message detected, image length: ${imageBase64?.length}`)
+            }
+
+            // Set content: image base64 with data URL prefix, or original text
+            const content = imageBase64
+                ? `data:image/jpeg;base64,${imageBase64}`
+                : messageData.data.content
+
+            await processIncomingMessage({
                 fromWxId,
                 toWxId: messageData.data.toUser,
                 msgId,
                 content,
                 wId,
                 nickName: nickName || "",
-            }
-            await processIncomingMessage(mappedMessage)
+            })
         }
 
         res.json({ code: "1000", message: "ok" })
