@@ -103,7 +103,21 @@ export const webhookCallback = async (req: Request, res: Response): Promise<void
             console.log(fromGroup + "-" + msgId + "________________________________")
             console.log("content: " + content)
 
-            const isBotMentioned = true // Image messages always process
+            console.log("mentionedName", mentionedName)
+
+            // Check if the mentioned name matches bot's actual nickname
+            const isBotMentioned =
+                (mentionedName &&
+                    botActualNickName &&
+                    (mentionedName.toLowerCase() === botActualNickName.toLowerCase() || mentionedName.toLowerCase() === "fandy")) ||
+                false
+
+            // Check if bot is mentioned in group message
+            if (!isBotMentioned) {
+                console.log("[Webhook] Group message but bot not mentioned or mentioned name doesn't match bot nickname")
+                // res.json({ code: "1000", message: "ok" })
+                // return
+            }
 
             // Check duplicate by msgId
             const existing = await chatHistory.findOne({ where: { msgId } })
