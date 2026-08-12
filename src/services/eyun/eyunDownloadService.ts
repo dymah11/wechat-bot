@@ -10,7 +10,7 @@ export class EyunDownloadService extends EyunBaseService {
         return this.request("/getMsgFile", params)
     }
 
-    async getMsgImg(params: GetMsgImgRequest): Promise<EyunResponse<{ content: string }>> {
+    async getMsgImg(params: GetMsgImgRequest): Promise<EyunResponse<{ url: string }>> {
         return this.request("/getMsgImg", params)
     }
 

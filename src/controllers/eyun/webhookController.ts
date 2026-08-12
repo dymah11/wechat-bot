@@ -142,17 +142,32 @@ export const webhookCallback = async (req: Request, res: Response): Promise<void
             // Check if this is an image message
             const msgType = messageData.data.messageType
             const isImageMessage = msgType === "60002" || messageData.msgType === "PRIVATE_IMAGE"
-            let imageBase64: string | null = null
+            let imageUrl: string | null = null
 
-            if (isImageMessage && messageData.data.img) {
-                imageBase64 = messageData.data.img
-                console.log(`[Webhook] Image message detected, image length: ${imageBase64?.length}`)
+            if (isImageMessage) {
+                try {
+                    // Use Eyun API to get image URL
+                    const eyun = getEyunService()
+                    const imgResult = await eyun.getMsgImg({
+                        wId,
+                        msgId: Number(messageData.data.msgId),
+                        content: messageData.data.content, // XML content
+                        type: 1, // 1 = HD image, 0 = regular image
+                    })
+
+                    if (imgResult.data?.url) {
+                        imageUrl = imgResult.data.url
+                        console.log(`[Webhook] Image URL: ${imageUrl}`)
+                    } else {
+                        console.log(`[Webhook] getMsgImg returned no URL`)
+                    }
+                } catch (err) {
+                    console.error("[Webhook] Failed to get image URL:", err)
+                }
             }
 
-            // Set content: image base64 with data URL prefix, or original text
-            const content = imageBase64
-                ? `data:image/jpeg;base64,${imageBase64}`
-                : messageData.data.content
+            // Set content: image URL for image messages, or original text
+            const content = imageUrl || messageData.data.content
 
             await processIncomingMessage({
                 fromWxId,
