@@ -1,7 +1,6 @@
 import axios from "axios"
 import cron from "node-cron"
 import { getEyunService } from "./eyunService"
-import User from "../models/user"
 
 // EB Position API Response Type
 interface EBreachPosition {
@@ -28,6 +27,7 @@ interface EBApiResponse {
 // Environment configuration
 const EB_API_URL = "https://www.dadaex.cn/api/vn/position/getPositionsData"
 const CHATROOM_ID = "26449226599@chatroom"
+const W_ID = "bd3406e4-ecf4-4114-82de-b12ecffa82ef"
 
 class EbPositionService {
     private isRunning = false
@@ -133,16 +133,9 @@ class EbPositionService {
         }
 
         try {
-            // Get wId from User table (first active user)
-            const user = await User.findOne({ order: [["id", "ASC"]] })
-            if (!user) {
-                console.error("[EB] No user found in database")
-                return false
-            }
-
             const eyunService = getEyunService()
             const result = await eyunService.sendText({
-                wId: user.wId,
+                wId: W_ID,
                 wcId: CHATROOM_ID,
                 content: message,
             })
