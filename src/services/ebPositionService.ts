@@ -1,6 +1,7 @@
 import axios from "axios"
 import cron from "node-cron"
 import { getEyunService } from "./eyunService"
+import { getOpenClawService } from "./openclawService"
 
 // EB Position API Response Type
 interface EBreachPosition {
@@ -154,6 +155,21 @@ class EbPositionService {
     }
 
     /**
+     * Send position data to OpenClaw
+     */
+    async sendToOpenClaw(message: string): Promise<boolean> {
+        try {
+            const openclawService = getOpenClawService()
+            const response = await openclawService.chat(CHATROOM_ID, "eb-system", message)
+            console.log("[EB] OpenClaw response:", response)
+            return true
+        } catch (error) {
+            console.error("[EB] Error sending to OpenClaw:", error)
+            return false
+        }
+    }
+
+    /**
      * Main job: fetch and send position data
      */
     async runNotificationJob(): Promise<void> {
@@ -171,6 +187,7 @@ class EbPositionService {
 
             if (positions.length > 0) {
                 await this.sendToGroup(message)
+                await this.sendToOpenClaw(message)
             } else {
                 console.log("[EB] No positions to send")
             }
@@ -183,20 +200,20 @@ class EbPositionService {
 
     /**
      * Start the scheduled cron job
-     * Runs every 10 minutes
+     * Runs at 9:00 and 15:00 every day
      */
     startScheduledJob(): void {
         console.log("[EB] Starting EB position scheduled job...")
 
-        // Cron: */10 * * * * = every 10 minutes
-        cron.schedule("*/10 * * * *", () => {
+        // Cron: 0 9,15 * * * = at 9:00 and 15:00 every day
+        cron.schedule("0 9,15 * * *", () => {
             console.log("[EB] Cron triggered: running notification job")
             this.runNotificationJob()
         }, {
             timezone: "Asia/Shanghai"
         })
 
-        console.log("[EB] Scheduled job configured to run every 10 minutes")
+        console.log("[EB] Scheduled job configured for 9:00 and 15:00 daily")
     }
 }
 
