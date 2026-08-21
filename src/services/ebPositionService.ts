@@ -196,7 +196,7 @@ class EbPositionService {
         console.log("[EB] Starting EB position scheduled job...")
 
         // Cron: 0 9,15 * * * = at 9:00 and 15:00 every day
-        cron.schedule("0 9,14 * * *", () => {
+        cron.schedule("0 9,15 * * *", () => {
             console.log("[EB] Cron triggered: running notification job")
             this.runNotificationJob()
         }, {
