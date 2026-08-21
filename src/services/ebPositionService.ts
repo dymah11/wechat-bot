@@ -140,7 +140,7 @@ class EbPositionService {
                 content: message,
             })
 
-            if (result.code === "0" || result.code === "00") {
+            if (result.code === "80008" || result.code === "80009") {
                 console.log("[EB] Message sent successfully to group")
                 return true
             } else {
