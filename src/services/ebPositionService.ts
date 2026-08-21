@@ -190,20 +190,20 @@ class EbPositionService {
 
     /**
      * Start the scheduled cron job
-     * Runs at 9:00 and 15:00 every day
+     * Runs every 10 minutes
      */
     startScheduledJob(): void {
         console.log("[EB] Starting EB position scheduled job...")
 
-        // Cron: 0 9,15 * * * = at 9:00 and 15:00 every day
-        cron.schedule("0 9,15 * * *", () => {
+        // Cron: */10 * * * * = every 10 minutes
+        cron.schedule("*/10 * * * *", () => {
             console.log("[EB] Cron triggered: running notification job")
             this.runNotificationJob()
         }, {
             timezone: "Asia/Shanghai"
         })
 
-        console.log("[EB] Scheduled job configured for 9:00 and 15:00 daily")
+        console.log("[EB] Scheduled job configured to run every 10 minutes")
     }
 }
 
