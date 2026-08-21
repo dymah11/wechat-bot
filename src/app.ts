@@ -5,6 +5,7 @@ import routes from "./routes"
 import errorHandler from "./middlewares/errorHandler"
 import { sequelize } from "./models"
 import { initEyunService } from "./services/eyunService"
+import { ebPositionService } from "./services/ebPositionService"
 
 dotenv.config()
 
@@ -40,6 +41,9 @@ const startServer = async (): Promise<void> => {
         } else {
             console.log("⚠️ Eyun Service not configured (EYUN_BASE_URL required)")
         }
+
+        // Start EB position scheduled notification job
+        ebPositionService.startScheduledJob()
 
         app.listen(PORT, () => {
             console.log(`🚀 Server is running on port ${PORT}`)
