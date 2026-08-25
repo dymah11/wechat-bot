@@ -59,7 +59,7 @@ class EbPositionService {
     }
 
     /**
-     * Format position data for WeChat message (compact table)
+     * Format position data for WeChat message
      */
     formatPositionMessage(positions: EBreachPosition[]): string {
         if (!positions || positions.length === 0) {
@@ -69,34 +69,46 @@ class EbPositionService {
         const now = new Date()
         const dateStr = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`
 
-        let message = `🚢 EB舱位 [${dateStr}]\n`
-        message += `━━━━━━━━━━━━━━━━━━━━\n`
-        message += `船公司      | 船名/航次           | 仓位   | 目的港\n`
-        message += `━━━━━━━━━━━━━━━━━━━━\n`
-
         // Only show positions with availability
         const available = positions.filter(p => {
             const [remaining] = p["剩余仓位/总仓位(TEU)"].split("/").map(Number)
             return remaining > 0
         })
 
+        let message = `🚢 EB舱位 [${dateStr}]\n`
+        message += `━━━━━━━━━━━━━━━━━━━━\n`
+        message += `📊 有仓位: ${available.length}/${positions.length} 条\n\n`
+
         for (const pos of available) {
             const slots = pos["剩余仓位/总仓位(TEU)"]
+            const [remaining, total] = slots.split("/")
+
+            // ETD date
+            const etdDate = new Date(pos.船期ETD)
+            const etdStr = `${etdDate.getMonth() + 1}/${etdDate.getDate()}`
+
+            // Late opening date
+            const lateDate = new Date(pos.晚开日期)
+            const lateStr = `${lateDate.getMonth() + 1}/${lateDate.getDate()}`
 
             // Shorten company name
-            const company = pos.船公司.replace(/\(.*?\)/, "").substring(0, 12)
+            const company = pos.船公司
 
-            // Shorten ship name
-            const shipName = pos["船名/航次"].substring(0, 20)
-
-            // Shorten destination
-            const dest = pos.目的港码头.split(";")[0].substring(0, 8)
-
-            message += `${company.padEnd(13)}| ${shipName.padEnd(20)}| ${slots.padEnd(6)}| ${dest}\n`
+            message += `🏢 ${company}\n`
+            message += `   🚢 ${pos["船名/航次"]}\n`
+            message += `   📦 ${remaining}/${total} TEU | 📍 ${pos.目的港码头}\n`
+            message += `   📅 ETD: ${etdStr} | 晚开: ${lateStr}\n`
+            message += `   🔖 航线: ${pos.航线代码}\n`
+            if (pos.起运港码头) {
+                message += `   🚢 起运: ${pos.起运港码头}\n`
+            }
+            if (pos.挂靠港) {
+                message += `   🔄 挂靠: ${pos.挂靠港}\n`
+            }
+            message += "\n"
         }
 
-        message += `━━━━━━━━━━━━━━━━━━━━\n`
-        message += `📊 共 ${available.length} 条有仓位 (总${positions.length}条)`
+        message += `━━━━━━━━━━━━━━━━━━━━`
 
         return message
     }
