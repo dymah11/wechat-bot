@@ -78,7 +78,7 @@ class EbPositionService {
             return remaining > 0
         })
 
-        let message = `🚢 EB舱位 [${dateStr}]\n`
+        let message = `🚢 EB系统舱位情况 [${dateStr}]\n`
         message += `━━━━━━━━━━━━━━━━━━━━\n`
         message += `📊 有仓位: ${available.length}/${positions.length} 条\n\n`
 
@@ -219,7 +219,7 @@ class EbPositionService {
             })
             console.log("[EB] Message sent to group:", result)
 
-            if (result.code === "80008" || result.code === "80009") {
+            if (result.code === "1000") {
                 console.log("[EB] Message sent successfully to group")
                 return true
             } else {
