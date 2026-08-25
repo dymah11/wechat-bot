@@ -123,31 +123,31 @@ class EbPositionService {
         const workbook = XLSX.utils.book_new()
 
         // Only show positions with availability
-        const available = positions.filter(p => {
-            const [remaining] = p["剩余仓位/总仓位(TEU)"].split("/").map(Number)
-            return remaining > 0
-        })
+        // const available = positions.filter(p => {
+        //     const [remaining] = p["剩余仓位/总仓位(TEU)"].split("/").map(Number)
+        //     return remaining > 0
+        // })
 
         // Prepare data for Excel
-        const data = available.map(pos => {
-            const slots = pos["剩余仓位/总仓位(TEU)"]
-            // const [remaining, total] = slots.split("/")
-            return {
-                "船公司": pos.船公司,
-                "船名/航次": pos["船名/航次"],
-                "剩余仓位/总仓位(TEU)": slots,
-                // "剩余仓位": remaining,
-                // "总仓位": total,
-                "目的港": pos.目的港码头,
-                "ETD": pos.船期ETD,
-                "晚开日期": pos.晚开日期,
-                "起运港": pos.起运港码头,
-                "航线代码": pos.航线代码,
-                "挂靠港": pos.挂靠港,
-            }
-        })
+        // const data = positions.map(pos => {
+        //     const slots = pos["剩余仓位/总仓位(TEU)"]
+        //     // const [remaining, total] = slots.split("/")
+        //     return {
+        //         "船公司": pos.船公司,
+        //         "船名/航次": pos["船名/航次"],
+        //         "剩余仓位/总仓位(TEU)": slots,
+        //         // "剩余仓位": remaining,
+        //         // "总仓位": total,
+        //         "目的港": pos.目的港码头,
+        //         "ETD": pos.船期ETD,
+        //         "晚开日期": pos.晚开日期,
+        //         "起运港": pos.起运港码头,
+        //         "航线代码": pos.航线代码,
+        //         "挂靠港": pos.挂靠港,
+        //     }
+        // })
 
-        const worksheet = XLSX.utils.json_to_sheet(data)
+        const worksheet = XLSX.utils.json_to_sheet(positions)
         XLSX.utils.book_append_sheet(workbook, worksheet, "舱位情况")
 
         // Generate file name with timestamp
@@ -288,8 +288,8 @@ class EbPositionService {
         console.log("[EB] Starting EB position scheduled job...")
 
         // Cron: 0 9,15 * * * = at 9:00 and 15:00 every day
-        // cron.schedule("0 9,15 * * *", () => {
-        cron.schedule("*/5 * * * *", () => {
+        cron.schedule("0 9,15 * * *", () => {
+        // cron.schedule("*/5 * * * *", () => {
             console.log("[EB] Cron triggered: running notification job")
             this.runNotificationJob()
         }, {
