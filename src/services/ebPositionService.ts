@@ -162,7 +162,7 @@ class EbPositionService {
     }
 
     /**
-     * Send Excel file to WeChat group
+     * Send Excel file to WeChat group via base64
      */
     async sendExcelToGroup(filePath: string): Promise<boolean> {
         if (!fs.existsSync(filePath)) {
@@ -174,16 +174,20 @@ class EbPositionService {
             const eyunService = getEyunService()
             const fileName = path.basename(filePath)
 
-            const result = await eyunService.sendFile({
+            // Read file as base64
+            const fileBuffer = fs.readFileSync(filePath)
+            const base64 = fileBuffer.toString("base64")
+
+            const result = await eyunService.sendFileBase64({
                 wId: W_ID,
                 wcId: CHATROOM_ID,
-                path: filePath,
+                base64: base64,
                 fileName: fileName,
             })
 
             console.log("[EB] Excel file sent to group:", result)
 
-            if (result.code === "80008" || result.code === "80009") {
+            if (result.code === "1000") {
                 console.log("[EB] Excel file sent successfully")
                 return true
             } else {
