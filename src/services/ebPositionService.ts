@@ -1,7 +1,10 @@
 import axios from "axios"
 import cron from "node-cron"
+import * as XLSX from "xlsx"
 import { getEyunService } from "./eyunService"
 import { getOpenClawService } from "./openclawService"
+import path from "path"
+import fs from "fs"
 
 // EB Position API Response Type
 interface EBreachPosition {
@@ -114,6 +117,86 @@ class EbPositionService {
     }
 
     /**
+     * Generate Excel file from positions data
+     */
+    async generateExcel(positions: EBreachPosition[]): Promise<string> {
+        const workbook = XLSX.utils.book_new()
+
+        // Only show positions with availability
+        const available = positions.filter(p => {
+            const [remaining] = p["剩余仓位/总仓位(TEU)"].split("/").map(Number)
+            return remaining > 0
+        })
+
+        // Prepare data for Excel
+        const data = available.map(pos => {
+            const slots = pos["剩余仓位/总仓位(TEU)"]
+            const [remaining, total] = slots.split("/")
+            return {
+                "船公司": pos.船公司,
+                "船名/航次": pos["船名/航次"],
+                "剩余仓位": remaining,
+                "总仓位": total,
+                "目的港": pos.目的港码头,
+                "ETD": pos.船期ETD,
+                "晚开日期": pos.晚开日期,
+                "起运港": pos.起运港码头,
+                "航线代码": pos.航线代码,
+                "挂靠港": pos.挂靠港,
+            }
+        })
+
+        const worksheet = XLSX.utils.json_to_sheet(data)
+        XLSX.utils.book_append_sheet(workbook, worksheet, "舱位情况")
+
+        // Generate file name with timestamp
+        const now = new Date()
+        const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`
+        const fileName = `EB舱位_${timestamp}.xlsx`
+        const filePath = path.join("/tmp", fileName)
+
+        XLSX.writeFile(workbook, filePath)
+        console.log(`[EB] Excel file generated: ${filePath}`)
+
+        return filePath
+    }
+
+    /**
+     * Send Excel file to WeChat group
+     */
+    async sendExcelToGroup(filePath: string): Promise<boolean> {
+        if (!fs.existsSync(filePath)) {
+            console.error("[EB] Excel file not found:", filePath)
+            return false
+        }
+
+        try {
+            const eyunService = getEyunService()
+            const fileName = path.basename(filePath)
+
+            const result = await eyunService.sendFile({
+                wId: W_ID,
+                wcId: CHATROOM_ID,
+                path: filePath,
+                fileName: fileName,
+            })
+
+            console.log("[EB] Excel file sent to group:", result)
+
+            if (result.code === "80008" || result.code === "80009") {
+                console.log("[EB] Excel file sent successfully")
+                return true
+            } else {
+                console.error("[EB] Failed to send Excel file:", result.message)
+                return false
+            }
+        } catch (error) {
+            console.error("[EB] Error sending Excel file:", error)
+            return false
+        }
+    }
+
+    /**
      * Send position data to WeChat group
      */
     async sendToGroup(message: string): Promise<boolean> {
@@ -129,6 +212,7 @@ class EbPositionService {
                 wcId: CHATROOM_ID,
                 content: message,
             })
+            console.log("[EB] Message sent to group:", result)
 
             if (result.code === "80008" || result.code === "80009") {
                 console.log("[EB] Message sent successfully to group")
@@ -177,6 +261,10 @@ class EbPositionService {
             if (positions.length > 0) {
                 await this.sendToGroup(message)
                 await this.sendToOpenClaw(message)
+
+                // Generate and send Excel file
+                const excelPath = await this.generateExcel(positions)
+                await this.sendExcelToGroup(excelPath)
             } else {
                 console.log("[EB] No positions to send")
             }
