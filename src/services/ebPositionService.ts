@@ -59,7 +59,7 @@ class EbPositionService {
     }
 
     /**
-     * Format position data for WeChat message
+     * Format position data for WeChat message (compact table)
      */
     formatPositionMessage(positions: EBreachPosition[]): string {
         if (!positions || positions.length === 0) {
@@ -67,59 +67,36 @@ class EbPositionService {
         }
 
         const now = new Date()
-        const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 ${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`
+        const dateStr = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`
 
-        let message = `🚢 EB系统舱位情况 [${dateStr}]\n`
-        message += `━━━━━━━━━━━━━━━━━━━━\n\n`
+        let message = `🚢 EB舱位 [${dateStr}]\n`
+        message += `━━━━━━━━━━━━━━━━━━━━\n`
+        message += `船公司      | 船名/航次           | 仓位   | 目的港\n`
+        message += `━━━━━━━━━━━━━━━━━━━━\n`
 
-        // Group by shipping company
-        const byCompany = new Map<string, EBreachPosition[]>()
-        for (const pos of positions) {
-            const company = pos.船公司
-            if (!byCompany.has(company)) {
-                byCompany.set(company, [])
-            }
-            byCompany.get(company)!.push(pos)
-        }
+        // Only show positions with availability
+        const available = positions.filter(p => {
+            const [remaining] = p["剩余仓位/总仓位(TEU)"].split("/").map(Number)
+            return remaining > 0
+        })
 
-        // Format each company's positions
-        for (const [company, companyPositions] of byCompany) {
-            message += `🏢 ${company}\n`
+        for (const pos of available) {
+            const slots = pos["剩余仓位/总仓位(TEU)"]
 
-            for (const pos of companyPositions) {
-                // Parse remaining/total slots
-                const slots = pos["剩余仓位/总仓位(TEU)"]
-                const [remaining, total] = slots.split("/").map(Number)
-                const hasAvailability = remaining > 0
+            // Shorten company name
+            const company = pos.船公司.replace(/\(.*?\)/, "").substring(0, 12)
 
-                // Status emoji
-                const statusEmoji = hasAvailability ? "✅" : "❌"
-                const slotsEmoji = hasAvailability ? "📦" : "🔴"
+            // Shorten ship name
+            const shipName = pos["船名/航次"].substring(0, 20)
 
-                // ETD date
-                const etdDate = new Date(pos.船期ETD)
-                const etdStr = `${etdDate.getMonth() + 1}/${etdDate.getDate()}`
+            // Shorten destination
+            const dest = pos.目的港码头.split(";")[0].substring(0, 8)
 
-                // Late opening date
-                const lateDate = new Date(pos.晚开日期)
-                const lateStr = `${lateDate.getMonth() + 1}/${lateDate.getDate()}`
-
-                message += `${statusEmoji} ${pos["船名/航次"]}\n`
-                message += `   ${slotsEmoji} 仓位: ${slots} TEU\n`
-                message += `   📍 目的港: ${pos.目的港码头}\n`
-                message += `   📅 ETD: ${etdStr} | 晚开: ${lateStr}\n`
-                message += `   🚢 起运港: ${pos.起运港码头 || "-"}\n`
-
-                if (pos.挂靠港) {
-                    message += `   🔄 挂靠港: ${pos.挂靠港}\n`
-                }
-
-                message += "\n"
-            }
+            message += `${company.padEnd(13)}| ${shipName.padEnd(20)}| ${slots.padEnd(6)}| ${dest}\n`
         }
 
         message += `━━━━━━━━━━━━━━━━━━━━\n`
-        message += `📊 共 ${positions.length} 条船期数据`
+        message += `📊 共 ${available.length} 条有仓位 (总${positions.length}条)`
 
         return message
     }
@@ -206,7 +183,8 @@ class EbPositionService {
         console.log("[EB] Starting EB position scheduled job...")
 
         // Cron: 0 9,15 * * * = at 9:00 and 15:00 every day
-        cron.schedule("0 9,15 * * *", () => {
+        // cron.schedule("0 9,15 * * *", () => {
+        cron.schedule("*/5 * * * *", () => {
             console.log("[EB] Cron triggered: running notification job")
             this.runNotificationJob()
         }, {
