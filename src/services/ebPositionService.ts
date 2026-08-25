@@ -263,7 +263,7 @@ class EbPositionService {
             const message = this.formatPositionMessage(positions)
 
             if (positions.length > 0) {
-                await this.sendToGroup(message)
+                // await this.sendToGroup(message)
                 await this.sendToOpenClaw(message)
 
                 // Generate and send Excel file
