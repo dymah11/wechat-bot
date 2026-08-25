@@ -131,12 +131,13 @@ class EbPositionService {
         // Prepare data for Excel
         const data = available.map(pos => {
             const slots = pos["剩余仓位/总仓位(TEU)"]
-            const [remaining, total] = slots.split("/")
+            // const [remaining, total] = slots.split("/")
             return {
                 "船公司": pos.船公司,
                 "船名/航次": pos["船名/航次"],
-                "剩余仓位": remaining,
-                "总仓位": total,
+                "剩余仓位/总仓位(TEU)": slots,
+                // "剩余仓位": remaining,
+                // "总仓位": total,
                 "目的港": pos.目的港码头,
                 "ETD": pos.船期ETD,
                 "晚开日期": pos.晚开日期,
@@ -152,7 +153,7 @@ class EbPositionService {
         // Generate file name with timestamp
         const now = new Date()
         const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`
-        const fileName = `EB舱位_${timestamp}.xlsx`
+        const fileName = `EB系统舱位情况_${timestamp}.xlsx`
         const filePath = path.join("/tmp", fileName)
 
         XLSX.writeFile(workbook, filePath)
