@@ -132,7 +132,7 @@ class EbPositionService {
 
         // Sort each port group by ETD (earliest first), then flatten
         const sortedPositions = Object.values(grouped)
-            .map(group => group.sort((a, b) => new Date(a.船期ETD).getTime() - new Date(b.船期ETD).getTime()))
+            .map(group => group.sort((a, b) => new Date(b.船期ETD).getTime() - new Date(a.船期ETD).getTime()))
             .flat()
 
         const worksheet = XLSX.utils.json_to_sheet(sortedPositions)
