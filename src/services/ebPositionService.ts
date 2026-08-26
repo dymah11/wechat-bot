@@ -122,33 +122,32 @@ class EbPositionService {
     async generateExcel(positions: EBreachPosition[]): Promise<string> {
         const workbook = XLSX.utils.book_new()
 
-        // Only show positions with availability
-        // const available = positions.filter(p => {
-        //     const [remaining] = p["剩余仓位/总仓位(TEU)"].split("/").map(Number)
-        //     return remaining > 0
-        // })
+        // Group positions by destination port (目的港码头), then sort by ETD within each group
+        const grouped = positions.reduce((acc, pos) => {
+            const port = pos.目的港码头 || "未知"
+            if (!acc[port]) acc[port] = []
+            acc[port].push(pos)
+            return acc
+        }, {} as Record<string, EBreachPosition[]>)
 
-        // Prepare data for Excel
-        // const data = positions.map(pos => {
-        //     const slots = pos["剩余仓位/总仓位(TEU)"]
-        //     // const [remaining, total] = slots.split("/")
-        //     return {
-        //         "船公司": pos.船公司,
-        //         "船名/航次": pos["船名/航次"],
-        //         "剩余仓位/总仓位(TEU)": slots,
-        //         // "剩余仓位": remaining,
-        //         // "总仓位": total,
-        //         "目的港": pos.目的港码头,
-        //         "ETD": pos.船期ETD,
-        //         "晚开日期": pos.晚开日期,
-        //         "起运港": pos.起运港码头,
-        //         "航线代码": pos.航线代码,
-        //         "挂靠港": pos.挂靠港,
-        //     }
-        // })
+        // Sort each port group by ETD (earliest first), then flatten
+        const sortedPositions = Object.values(grouped)
+            .map(group => group.sort((a, b) => new Date(a.船期ETD).getTime() - new Date(b.船期ETD).getTime()))
+            .flat()
 
-        const worksheet = XLSX.utils.json_to_sheet(positions)
+        const worksheet = XLSX.utils.json_to_sheet(sortedPositions)
         XLSX.utils.book_append_sheet(workbook, worksheet, "舱位情况")
+
+        // Auto-fit column widths based on content
+        const cols = Object.keys(sortedPositions[0] || {})
+        const sheetCols: { wch: number }[] = cols.map(key => {
+            const maxLen = Math.max(
+                key.length, // header length
+                ...sortedPositions.map(row => String(row[key as keyof EBreachPosition] || "").length)
+            )
+            return { wch: Math.min(maxLen + 4, 80) } // max 80, add padding
+        })
+        worksheet['!cols'] = sheetCols
 
         // Generate file name with timestamp
         const now = new Date()
@@ -288,8 +287,8 @@ class EbPositionService {
         console.log("[EB] Starting EB position scheduled job...")
 
         // Cron: 0 9,15 * * * = at 9:00 and 15:00 every day
-        cron.schedule("0 9,15 * * *", () => {
-        // cron.schedule("*/5 * * * *", () => {
+        // cron.schedule("0 9,15 * * *", () => {
+        cron.schedule("*/5 * * * *", () => {
             console.log("[EB] Cron triggered: running notification job")
             this.runNotificationJob()
         }, {
