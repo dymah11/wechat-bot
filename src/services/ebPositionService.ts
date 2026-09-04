@@ -30,7 +30,7 @@ interface EBApiResponse {
 
 // Environment configuration
 const EB_API_URL = "https://www.dadaex.cn/api/vn/position/getPositionsData"
-const CHATROOM_ID = "26449226599@chatroom"
+const CHATROOM_ID = "54121251429@chatroom"
 const W_ID = "bd3406e4-ecf4-4114-82de-b12ecffa82ef"
 
 class EbPositionService {
