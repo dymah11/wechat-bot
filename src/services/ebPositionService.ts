@@ -1,6 +1,7 @@
 import axios from "axios"
 import cron from "node-cron"
 import * as XLSX from "xlsx"
+import FormData from "form-data"
 import { getEyunService } from "./eyunService"
 import { getOpenClawService } from "./openclawService"
 import path from "path"
@@ -226,7 +227,7 @@ class EbPositionService {
         try {
             const fileName = path.basename(filePath)
 
-            // Send file using form data
+            // Use form-data package for proper file upload
             const formData = new FormData()
             formData.append("groupId", QQ_GROUP_ID)
             formData.append("originalname", fileName)
@@ -237,9 +238,7 @@ class EbPositionService {
                 DADAEX_FILE_SEND_URL,
                 formData,
                 {
-                    headers: {
-                        "Content-Type": "multipart/form-data",
-                    },
+                    // form-data会自动设置正确的Content-Type，不需要手动设置
                     timeout: 60000,
                 }
             )
