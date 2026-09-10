@@ -46,7 +46,7 @@ const startServer = async (): Promise<void> => {
         ebPositionService.startScheduledJob()
 
         // Start QQ group scheduled notification job (every 3 hours)
-        ebPositionService.startQQScheduledJob()
+        // ebPositionService.startQQScheduledJob()
 
         app.listen(PORT, () => {
             console.log(`🚀 Server is running on port ${PORT}`)
