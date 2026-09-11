@@ -450,20 +450,20 @@ class EbPositionService {
      * Runs every 10 minutes between 9:00-18:00
      * Sends immediately if positions changed, otherwise at scheduled times
      */
-    startQQScheduledJob(): void {
-        console.log("[EB] Starting QQ group scheduled job...")
+    // startQQScheduledJob(): void {
+    //     console.log("[EB] Starting QQ group scheduled job...")
 
-        // Cron: */10 * * * * = every 10 minutes to check for changes
-        // Will send immediately if changed, or at scheduled times (9h,12h,15h,18h)
-        cron.schedule("*/10 9-18 * * *", () => {
-            console.log("[EB] QQ Cron triggered: running notification job")
-            this.runQQNotificationJob()
-        }, {
-            timezone: "Asia/Shanghai"
-        })
+    //     // Cron: */10 * * * * = every 10 minutes to check for changes
+    //     // Will send immediately if changed, or at scheduled times (9h,12h,15h,18h)
+    //     cron.schedule("*/10 9-18 * * *", () => {
+    //         console.log("[EB] QQ Cron triggered: running notification job")
+    //         this.runQQNotificationJob()
+    //     }, {
+    //         timezone: "Asia/Shanghai"
+    //     })
 
-        console.log("[EB] QQ Scheduled job configured for every 3 hours")
-    }
+    //     console.log("[EB] QQ Scheduled job configured for every 3 hours")
+    // }
 }
 
 // Singleton instance
