@@ -215,50 +215,6 @@ class EbPositionService {
     }
 
     /**
-     * Send Excel file to QQ group via dadaex API
-     * API: POST https://www.dadaex.cn/api/wx/sendWildRobotGroupFile (form data)
-     */
-    async sendExcelToQQGroup(filePath: string): Promise<boolean> {
-        if (!fs.existsSync(filePath)) {
-            console.error("[EB] Excel file not found:", filePath)
-            return false
-        }
-
-        try {
-            const fileName = path.basename(filePath)
-
-            // Use form-data package for proper file upload
-            const formData = new FormData()
-            formData.append("groupId", QQ_GROUP_ID)
-            formData.append("originalname", fileName)
-            formData.append("token", DADAEX_TOKEN)
-            formData.append("file", fs.createReadStream(filePath))
-
-            const result = await axios.post(
-                DADAEX_FILE_SEND_URL,
-                formData,
-                {
-                    // form-data会自动设置正确的Content-Type，不需要手动设置
-                    timeout: 60000,
-                }
-            )
-
-            console.log("[EB] QQ group file send response:", result.data)
-
-            if (result.data?.retcode === 0 || result.data?.status === "ok") {
-                console.log("[EB] Excel file sent to QQ group successfully")
-                return true
-            } else {
-                console.error("[EB] Failed to send Excel file to QQ group:", result.data?.message || result.data)
-                return false
-            }
-        } catch (error) {
-            console.error("[EB] Error sending Excel file to QQ group:", error)
-            return false
-        }
-    }
-
-    /**
      * Send position data to WeChat group
      */
     async sendToGroup(message: string): Promise<boolean> {
@@ -327,7 +283,6 @@ class EbPositionService {
                 // Generate and send Excel file
                 const excelPath = await this.generateExcel(positions)
                 await this.sendExcelToGroup(excelPath)
-                await this.sendExcelToQQGroup(excelPath)
             } else {
                 console.log("[EB] No positions to send")
             }
@@ -357,113 +312,6 @@ class EbPositionService {
         console.log("[EB] Scheduled job configured for 9:00 and 15:00 daily")
     }
 
-    /**
-     * Check if positions have changed compared to previous check
-     */
-    private hasPositionsChanged(currentPositions: EBreachPosition[]): boolean {
-        if (this.previousPositions.length !== currentPositions.length) {
-            return true
-        }
-
-        // Compare by key fields: 船公司, 船名/航次, 目的港码头, 剩余仓位/总仓位(TEU)
-        const currentKeys = currentPositions.map(p =>
-            `${p.船公司}|${p["船名/航次"]}|${p.目的港码头}|${p["剩余仓位/总仓位(TEU)"]}`
-        ).sort()
-
-        const previousKeys = this.previousPositions.map(p =>
-            `${p.船公司}|${p["船名/航次"]}|${p.目的港码头}|${p["剩余仓位/总仓位(TEU)"]}`
-        ).sort()
-
-        return JSON.stringify(currentKeys) !== JSON.stringify(previousKeys)
-    }
-
-    /**
-     * Run QQ group notification job
-     * - If positions changed -> send immediately
-     * - If no change -> still send every 3 hours (scheduled check)
-     */
-    async runQQNotificationJob(): Promise<void> {
-        if (this.isRunningQQ) {
-            console.log("[EB] QQ job already running, skipping...")
-            return
-        }
-
-        this.isRunningQQ = true
-        console.log("[EB] Starting QQ group notification job...")
-
-        try {
-            const positions = await this.fetchPositions()
-
-            if (positions.length === 0) {
-                console.log("[EB] No positions to send to QQ group")
-                this.isRunningQQ = false
-                return
-            }
-
-            const hasChanged = this.hasPositionsChanged(positions)
-            const now = Date.now()
-            const threeHours = 3 * 60 * 60 * 1000
-            const timeSinceLastSend = now - this.lastQQSendTime
-
-            // Send if: changed OR (3 hours passed since last send AND has positions)
-            if (!hasChanged && (this.lastQQSendTime === 0 || timeSinceLastSend < threeHours)) {
-                console.log("[EB] Positions unchanged and not time for scheduled send, skipping")
-                this.isRunningQQ = false
-                return
-            }
-
-            // Check rate limit - at least 1 minute between sends (except for changes)
-            if (!hasChanged && timeSinceLastSend < 60000) {
-                console.log("[EB] QQ rate limited, skipping...")
-                this.isRunningQQ = false
-                return
-            }
-
-            // Generate and send Excel file to QQ group
-            const excelPath = await this.generateExcel(positions)
-            const sent = await this.sendExcelToQQGroup(excelPath)
-
-            // Delete file after sending
-            try {
-                if (fs.existsSync(excelPath)) {
-                    fs.unlinkSync(excelPath)
-                    console.log(`[EB] Deleted temp file: ${excelPath}`)
-                }
-            } catch (err) {
-                console.error("[EB] Failed to delete temp file:", err)
-            }
-
-            if (sent) {
-                this.previousPositions = [...positions]
-                this.lastQQSendTime = now
-                console.log("[EB] QQ group notification sent successfully")
-            }
-        } catch (error) {
-            console.error("[EB] QQ job failed:", error)
-        } finally {
-            this.isRunningQQ = false
-        }
-    }
-
-    /**
-     * Start QQ group scheduled cron job
-     * Runs every 10 minutes between 9:00-18:00
-     * Sends immediately if positions changed, otherwise at scheduled times
-     */
-    // startQQScheduledJob(): void {
-    //     console.log("[EB] Starting QQ group scheduled job...")
-
-    //     // Cron: */10 * * * * = every 10 minutes to check for changes
-    //     // Will send immediately if changed, or at scheduled times (9h,12h,15h,18h)
-    //     cron.schedule("*/10 9-18 * * *", () => {
-    //         console.log("[EB] QQ Cron triggered: running notification job")
-    //         this.runQQNotificationJob()
-    //     }, {
-    //         timezone: "Asia/Shanghai"
-    //     })
-
-    //     console.log("[EB] QQ Scheduled job configured for every 3 hours")
-    // }
 }
 
 // Singleton instance
