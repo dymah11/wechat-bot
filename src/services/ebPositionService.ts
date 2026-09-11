@@ -43,7 +43,7 @@ class EbPositionService {
     private isRunning = false
     private previousPositions: EBreachPosition[] = []
     private lastQQSendTime: number = 0
-
+    private isRunningQQ = false
     /**
      * Fetch EB position data from API
      */
@@ -383,12 +383,12 @@ class EbPositionService {
      * - If no change -> still send every 3 hours (scheduled check)
      */
     async runQQNotificationJob(): Promise<void> {
-        if (this.isRunning) {
+        if (this.isRunningQQ) {
             console.log("[EB] QQ job already running, skipping...")
             return
         }
 
-        this.isRunning = true
+        this.isRunningQQ = true
         console.log("[EB] Starting QQ group notification job...")
 
         try {
@@ -396,7 +396,7 @@ class EbPositionService {
 
             if (positions.length === 0) {
                 console.log("[EB] No positions to send to QQ group")
-                this.isRunning = false
+                this.isRunningQQ = false
                 return
             }
 
@@ -408,14 +408,14 @@ class EbPositionService {
             // Send if: changed OR (3 hours passed since last send AND has positions)
             if (!hasChanged && (this.lastQQSendTime === 0 || timeSinceLastSend < threeHours)) {
                 console.log("[EB] Positions unchanged and not time for scheduled send, skipping")
-                this.isRunning = false
+                this.isRunningQQ = false
                 return
             }
 
             // Check rate limit - at least 1 minute between sends (except for changes)
             if (!hasChanged && timeSinceLastSend < 60000) {
                 console.log("[EB] QQ rate limited, skipping...")
-                this.isRunning = false
+                this.isRunningQQ = false
                 return
             }
 
@@ -441,7 +441,7 @@ class EbPositionService {
         } catch (error) {
             console.error("[EB] QQ job failed:", error)
         } finally {
-            this.isRunning = false
+            this.isRunningQQ = false
         }
     }
 
