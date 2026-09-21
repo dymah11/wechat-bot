@@ -132,13 +132,13 @@ class EbPositionService {
 
         // Group positions by destination port (目的港码头), then sort by ETD within each group
         const grouped = positions.reduce((acc, pos) => {
-            const port = pos.目的港码头 || "未知"
-            if (!acc[port]) acc[port] = []
-            acc[port].push(pos)
+            const company = pos.船公司 || "未知"
+            if (!acc[company]) acc[company] = []
+            acc[company].push(pos)
             return acc
         }, {} as Record<string, EBreachPosition[]>)
 
-        // Sort each port group by ETD (earliest first), then flatten
+        // Sort each company group by ETD (earliest first), then flatten
         const sortedPositions = Object.values(grouped)
             .map(group => group.sort((a, b) => new Date(b.船期ETD).getTime() - new Date(a.船期ETD).getTime()))
             .flat()
