@@ -2,6 +2,8 @@ import { Request, Response } from "express"
 import { getEyunService } from "../../services/eyunService"
 import { processIncomingMessage, processIncomingGroupMessage } from "../../services/quoteService"
 import { saveContact } from "../../services/contactService"
+import { freightService } from "../../services/freightService"
+import { isSpecialGroup } from "../../config/freightConfig"
 import { chatHistory, User } from "../../models"
 
 export const setWebhook = async (req: Request, res: Response): Promise<void> => {
@@ -159,6 +161,26 @@ export const webhookCallback = async (req: Request, res: Response): Promise<void
                 return
             }
 
+            // Get group name for special group detection
+            const groupName = await getGroupName(wId, fromGroup)
+            console.log(`[Webhook] Group name: ${groupName}`)
+
+            // Check if this is a special group (运价 group) and process freight
+            if (groupName && isSpecialGroup(groupName)) {
+                console.log(`[Webhook] This is a special freight group: ${groupName}`)
+                await freightService.processFreightMessage({
+                    msgId,
+                    fromWxId,
+                    fromGroup,
+                    groupName,
+                    content,
+                    wId,
+                    nickName,
+                    timestamp: Date.now(),
+                })
+                // Continue to also process with AI for bot mention
+            }
+
             await processIncomingGroupMessage({
                 msgId,
                 fromWxId,
@@ -261,4 +283,21 @@ function extractGroupMessageContent(content: string, botNickName: string): strin
     const escapedNickName = botNickName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
     const pattern = new RegExp(`@${escapedNickName}\\s*`)
     return content.replace(pattern, "").trim()
+}
+
+/**
+ * Get group name from group ID using Eyun service
+ */
+async function getGroupName(wId: string, groupId: string): Promise<string | null> {
+    try {
+        const eyun = getEyunService()
+        const result = await eyun.getChatRoomInfo({ wId, chatRoomId: groupId })
+        if (result.data?.topic) {
+            return result.data.topic
+        }
+        return null
+    } catch (error) {
+        console.error("[Webhook] Failed to get group name:", error)
+        return null
+    }
 }
